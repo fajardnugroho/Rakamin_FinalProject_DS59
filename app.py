@@ -8,7 +8,6 @@ menu = st.sidebar.radio(
     "Pilih Halaman:",
     [
         "Dashboard",
-        "Tes Page"
     ]
 )
 
