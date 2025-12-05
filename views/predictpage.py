@@ -5,23 +5,66 @@ import numpy as np
 import pickle
 import random
 
+# Global variables for model caching
+_pipeline = None
+_model_time = None
+_model_cost = None
+_model_oar = None
+_scaler_cluster = None
+_scaler_optimal = None
+_kmeans = None
+_ohe_columns = None
+_preprocess_columns = None
+_feature_cols_original = None
+_cluster_features_columns = None
+_feature_cols_model = None
 
-# LOAD MODEL
-pipeline = joblib.load("models/pipeline_final.pkl")
-model_time  = pipeline["model_time"]
-model_cost  = pipeline["model_cost"]
-model_oar   = pipeline["model_oar"]
-scaler_cluster = pipeline["scaler_cluster"]
-scaler_optimal = pipeline["scaler_optimal"]
-kmeans = pipeline["kmeans"]
-
-ohe_columns = pipeline["ohe_columns"]
-preprocess_columns = pipeline["preprocess_columns"]
-feature_cols_original = pipeline["feature_cols_original"]
-cluster_features_columns = pipeline["cluster_features_columns"]
-feature_cols_model = pipeline["feature_cols_model"]
+def load_model():
+    """Lazy load the model pipeline"""
+    global _pipeline, _model_time, _model_cost, _model_oar
+    global _scaler_cluster, _scaler_optimal, _kmeans
+    global _ohe_columns, _preprocess_columns, _feature_cols_original
+    global _cluster_features_columns, _feature_cols_model
+    
+    if _pipeline is None:
+        try:
+            _pipeline = joblib.load("models/pipeline_final.pkl")
+            _model_time = _pipeline["model_time"]
+            _model_cost = _pipeline["model_cost"]
+            _model_oar = _pipeline["model_oar"]
+            _scaler_cluster = _pipeline["scaler_cluster"]
+            _scaler_optimal = _pipeline["scaler_optimal"]
+            _kmeans = _pipeline["kmeans"]
+            _ohe_columns = _pipeline["ohe_columns"]
+            _preprocess_columns = _pipeline["preprocess_columns"]
+            _feature_cols_original = _pipeline["feature_cols_original"]
+            _cluster_features_columns = _pipeline["cluster_features_columns"]
+            _feature_cols_model = _pipeline["feature_cols_model"]
+        except Exception as e:
+            st.error(f"Error loading model: {str(e)}")
+            st.stop()
+    
+    return {
+        "model_time": _model_time,
+        "model_cost": _model_cost,
+        "model_oar": _model_oar,
+        "scaler_cluster": _scaler_cluster,
+        "scaler_optimal": _scaler_optimal,
+        "kmeans": _kmeans,
+        "ohe_columns": _ohe_columns,
+        "preprocess_columns": _preprocess_columns,
+        "feature_cols_original": _feature_cols_original,
+        "cluster_features_columns": _cluster_features_columns,
+        "feature_cols_model": _feature_cols_model
+    }
 
 def generate_features(dept, job, source, num_applicants, time_to_hire, cost_per_hire, oar):
+    pipeline_data = load_model()
+    preprocess_columns = pipeline_data["preprocess_columns"]
+    cluster_features_columns = pipeline_data["cluster_features_columns"]
+    scaler_cluster = pipeline_data["scaler_cluster"]
+    kmeans = pipeline_data["kmeans"]
+    feature_cols_model = pipeline_data["feature_cols_model"]
 
     df = pd.DataFrame([{col: 0 for col in preprocess_columns}])
 
@@ -98,6 +141,11 @@ def run():
 
 
         if predict and valid:
+            pipeline_data = load_model()
+            model_time = pipeline_data["model_time"]
+            model_cost = pipeline_data["model_cost"]
+            model_oar = pipeline_data["model_oar"]
+            scaler_optimal = pipeline_data["scaler_optimal"]
 
             sources = ["Referral","LinkedIn","Job Portal","Recruiter"]
             full = []
