@@ -29,19 +29,36 @@ def load_model():
     if _pipeline is None:
         try:
             _pipeline = joblib.load("models/pipeline_final.pkl")
+            
+            # Verify all required keys exist
+            required_keys = ["model_time", "model_cost", "model_oar", "scaler_cluster", 
+                           "scaler_optimal", "kmeans", "preprocess_columns", 
+                           "cluster_features_columns", "feature_cols_model"]
+            missing_keys = [key for key in required_keys if key not in _pipeline]
+            if missing_keys:
+                st.error(f"❌ Missing keys in pipeline: {missing_keys}")
+                st.stop()
+            
             _model_time = _pipeline["model_time"]
             _model_cost = _pipeline["model_cost"]
             _model_oar = _pipeline["model_oar"]
             _scaler_cluster = _pipeline["scaler_cluster"]
             _scaler_optimal = _pipeline["scaler_optimal"]
             _kmeans = _pipeline["kmeans"]
-            _ohe_columns = _pipeline["ohe_columns"]
+            _ohe_columns = _pipeline.get("ohe_columns", [])
             _preprocess_columns = _pipeline["preprocess_columns"]
-            _feature_cols_original = _pipeline["feature_cols_original"]
+            _feature_cols_original = _pipeline.get("feature_cols_original", [])
             _cluster_features_columns = _pipeline["cluster_features_columns"]
             _feature_cols_model = _pipeline["feature_cols_model"]
+            
+            # Debug info (only show in development)
+            import os
+            if os.getenv("STREAMLIT_ENV") != "production":
+                st.info(f"✓ Model loaded: {type(_model_time).__name__}, Scaler: {type(_scaler_optimal).__name__}")
         except Exception as e:
             st.error(f"Error loading model: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
             st.stop()
     
     return {
@@ -159,6 +176,10 @@ def run():
                 pred_time = model_time.predict(X)[0]
                 pred_cost = model_cost.predict(X)[0]
                 pred_oar  = model_oar.predict(X)[0]
+                
+                # Debug: Check for invalid predictions
+                if pred_time < 0 or pred_cost < 0 or pred_oar < 0 or pred_oar > 1:
+                    st.warning(f"⚠️ Unusual prediction for {src}: Time={pred_time:.2f}, Cost={pred_cost:.2f}, OAR={pred_oar:.2f}")
 
                 scaled = scaler_optimal.transform([[pred_time,pred_cost,pred_oar]])
                 optimal = (scaled[0][0]*time_w) + (scaled[0][1]*cost_w) + (scaled[0][2]*oar_w)
